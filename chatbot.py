@@ -33,7 +33,7 @@ class NNClassifier:
     def __init__(self):
         self.model=None
 
-    def train(self,X,y,epochs,learning_rate):
+    def train(self,X,y,epochs,batch_size,learning_rate):
         # 获取特征向量和标签的长度
         input_size=len(X[0])
         output_size=len(y[0])
@@ -49,11 +49,14 @@ class NNClassifier:
         optimizer=torch.optim.Adam(self.model.parameters(),lr=learning_rate)
         # 开始训练
         for epoch in tqdm(range(epochs), desc="training"):
-            y_pred=self.model(X)
-            loss=loss_fn(y_pred, y.float())  # convert target tensor to float tensor
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+            for i in range(0,len(X),batch_size):
+                X_batch=X[i:i+batch_size]
+                y_batch=y[i:i+batch_size]
+                y_pred=self.model(X_batch)
+                loss=loss_fn(y_pred, y_batch.float())  # convert target tensor to float tensor
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
             # 更新进度条
             tqdm.write("Epoch [{}/{}], Loss: {:.4f}".format(epoch+1, epochs, loss.item()))
 
@@ -70,7 +73,7 @@ class Chatbot():
         self.featurizer=LanguageModelFeaturizer('bert-base-chinese','bert-base-chinese')
         self.classifier=NNClassifier()
 
-    def train(self,training_data,epochs=100, learning_rate=0.001):
+    def train(self,training_data,epochs=100,batch_size=32,learning_rate=0.001):
         # 将训练数据转化为特征向量
         X=[]
         y=[]
@@ -81,7 +84,7 @@ class Chatbot():
             label=training_data.iloc[row]['label']
             y.append([label])
         # 训练分类器
-        self.classifier.train(torch.tensor(X),torch.tensor(y),epochs, learning_rate)
+        self.classifier.train(torch.tensor(X),torch.tensor(y),epochs,batch_size,learning_rate)
 
     def predict(self,message):
         # 提取特征向量

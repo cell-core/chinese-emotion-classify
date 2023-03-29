@@ -20,7 +20,7 @@ import data_tools
 training_data=pd.read_csv("train.csv")
 test_data=pd.read_csv("test.csv")
 chatbot=chatbot.Chatbot()
-chatbot.train(training_data,epochs=100, learning_rate=0.001)
+chatbot.train(training_data,epochs=100,batch_size=32,learning_rate=0.001)
 chatbot.evaluate(test_data)
 
 while True:
