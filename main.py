@@ -19,13 +19,14 @@ import data_tools
 
 training_data=pd.read_csv("train.csv")
 test_data=pd.read_csv("test.csv")
-chatbot=chatbot.Chatbot()
+chatbot=chatbot.Chatbot(classifier='NNClassifier')
+#chatbot=chatbot.Chatbot(classifier='LSTMClassifier')
 chatbot.train(training_data,epochs=100,batch_size=32,learning_rate=0.001)
 chatbot.evaluate(test_data)
 
-while True:
-    message=input("请输入消息：")
-    if(message == "退出" or message == "停止" or message == "stop"):
-        break
-    result=chatbot.predict(message)
-    print(result)
+# while True:
+#     message=input("请输入消息：")
+#     if(message == "退出" or message == "停止" or message == "stop"):
+#         break
+#     result=chatbot.predict(message)
+#     print(result)
