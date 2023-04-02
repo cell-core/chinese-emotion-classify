@@ -1,17 +1,24 @@
 import pandas as pd
 from sklearn.model_selection import train_test_split,StratifiedShuffleSplit
+import string
 
 
 class DataCleaner():
     def __init__(self,dst_path="clean_data.csv"):
-        self.dst_path=dst_path
+        self.dst_path=dst_path        
 
+    # 去除空值
     def drop_na(self,dataset):
         dataset.dropna(inplace=True)
 
+    #去除中英文标点
+    def remove_punct(self,text):
+        chinese_punctuations = '！？｡。＂＃＄％＆＇（）＊＋，－／：；＜＝＞＠［＼］＾＿｀｛｜｝～〃〈〉《》「」『』【】〔〕〖〗（）［］｛｝｟｠｢｣､、'
+        text = text.translate(str.maketrans('', '', string.punctuation + chinese_punctuations))
+
 
 class DataSplitter():
-    def __init__(self,train_path="train.csv",test_path="test.csv"):
+    def __init__(self,train_path="./data/train.csv",test_path="./data/test.csv"):
         self.train_path=train_path
         self.test_path=test_path
 

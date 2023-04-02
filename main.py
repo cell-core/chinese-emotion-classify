@@ -10,7 +10,7 @@ import data_tools
 # print(null_rows)
 
 
-# df=pd.read_csv("database.csv")
+# df=pd.read_csv("./data/database.csv")
 # cleaner=data_tools.DataCleaner()
 # cleaner.drop_na(df)
 # spliter=data_tools.DataSplitter()
