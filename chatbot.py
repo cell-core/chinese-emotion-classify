@@ -127,16 +127,19 @@ class LSTMClassifier(torch.nn.Module):
 
 # 定义对话机器人类
 class Chatbot():
-    def __init__(self,classifier):
+    def __init__(self,classifier,epochs=100,batch_size=32,learning_rate=0.001):
         self.tokenizer=JiebaTokenizer()
         self.featurizer=LanguageModelFeaturizer('bert-base-chinese','bert-base-chinese')
+        self.epochs=epochs
+        self.batch_size=batch_size
+        self.learning_rate=learning_rate
         self.mode=classifier
         if(classifier=='NNClassifier'):
             self.classifier=NNClassifier()
         elif(classifier=='LSTMClassifier'):
             self.classifier=LSTMClassifier()
 
-    def train(self,training_data,epochs=100,batch_size=32,learning_rate=0.001):
+    def train(self,training_data):
         # 将训练数据转化为特征向量
         X=[]
         y=[]
@@ -147,7 +150,7 @@ class Chatbot():
             label=training_data.iloc[row]['label']
             y.append([label])
         # 训练分类器
-        self.classifier.train(torch.tensor(X),torch.tensor(y),epochs,batch_size,learning_rate)
+        self.classifier.train(torch.tensor(X),torch.tensor(y),self.epochs,self.batch_size,self.learning_rate)
 
     def predict(self,message):
         # 提取特征向量
@@ -168,8 +171,8 @@ class Chatbot():
             y_test.append(label) #注意与train()函数中y.append([label])不同
 
         # 将特征向量输入模型进行预测
-        y_pred = self.classifier.predict(torch.tensor(X_test))
-        y_pred = [1 if prob >= 0.5 else 0 for prob in y_pred]
+        y_prob = self.classifier.predict(torch.tensor(X_test))
+        y_pred = [1 if prob >= 0.5 else 0 for prob in y_prob]
 
         # 计算各项预测参数
         accuracy = sum([1 if pred == true_label else 0 for pred, true_label in zip(y_pred, y_test)]) / len(y_test)
@@ -181,3 +184,29 @@ class Chatbot():
         print("Precision: {:.4f}".format(precision))
         print("Recall: {:.4f}".format(recall))
         print("F1 Score: {:.4f}".format(f1_score))
+
+        # 保存分类错误的样本到文件中
+        wrong_samples_to0 = []
+        wrong_samples_to1 = [] # 被错误归类为1的样本
+        prob_to0 = []
+        prob_to1 = [] # 对应样本模型预测的prob值 
+        for i in tqdm(range(len(y_pred)), desc="wrongData"):
+            if y_pred[i] != y_test[i]:
+                if y_pred[i] == 0:
+                    wrong_samples_to0.append(test_data.iloc[i])
+                    prob_to0.append(round(y_prob[i], 2))
+                else:
+                    wrong_samples_to1.append(test_data.iloc[i])
+                    prob_to1.append(round(y_prob[i], 2))
+        wrong_df0 = pd.DataFrame(wrong_samples_to0)
+        wrong_df1 = pd.DataFrame(wrong_samples_to1)
+        wrong_df0.insert(loc=1, column='prob', value=prob_to0)
+        wrong_df1.insert(loc=1, column='prob', value=prob_to1)
+        wrong_df0.to_csv('./data/wrong/wrongTo0.csv', index=False)
+        wrong_df1.to_csv('./data/wrong/wrongTo1.csv', index=False)
+
+        # 写入训练信息
+        train_info=pd.read_csv('./data/train_info.csv')
+        new_row = {'classifier': self.mode, 'epochs': self.epochs, 'batch_size': self.batch_size, 'learning_rate': self.learning_rate, 'accuracy': accuracy, 'precision': precision, 'recall': recall, 'f1_score': f1_score}
+        train_info=train_info.append(new_row, ignore_index=True)
+        train_info.to_csv('./data/train_info.csv', index=False)

@@ -19,9 +19,9 @@ import data_tools
 
 training_data=pd.read_csv("./data/trainC.csv")
 test_data=pd.read_csv("./data/testC.csv")
-chatbot=chatbot.Chatbot(classifier='NNClassifier')
-#chatbot=chatbot.Chatbot(classifier='LSTMClassifier')
-chatbot.train(training_data,epochs=100,batch_size=32,learning_rate=0.001)
+#chatbot=chatbot.Chatbot(classifier='NNClassifier',epochs=100,batch_size=32,learning_rate=0.001)
+chatbot=chatbot.Chatbot(classifier='LSTMClassifier',epochs=100,batch_size=32,learning_rate=0.001)
+chatbot.train(training_data)
 chatbot.evaluate(test_data)
 
 # while True:
