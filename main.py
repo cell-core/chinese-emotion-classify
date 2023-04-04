@@ -17,8 +17,8 @@ import data_tools
 # spliter.stratified_split(df,train_rows=200)
 
 
-training_data=pd.read_csv("train.csv")
-test_data=pd.read_csv("test.csv")
+training_data=pd.read_csv("./data/trainC.csv")
+test_data=pd.read_csv("./data/testC.csv")
 chatbot=chatbot.Chatbot(classifier='NNClassifier')
 #chatbot=chatbot.Chatbot(classifier='LSTMClassifier')
 chatbot.train(training_data,epochs=100,batch_size=32,learning_rate=0.001)

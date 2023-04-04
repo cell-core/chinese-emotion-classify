@@ -1,6 +1,7 @@
 import pandas as pd
 from sklearn.model_selection import train_test_split,StratifiedShuffleSplit
 import string
+import jieba
 
 
 class DataCleaner():
@@ -11,10 +12,23 @@ class DataCleaner():
     def drop_na(self,dataset):
         dataset.dropna(inplace=True)
 
-    #去除中英文标点
+    # 去除中英文标点
     def remove_punct(self,text):
         chinese_punctuations = '！？｡。＂＃＄％＆＇（）＊＋，－／：；＜＝＞＠［＼］＾＿｀｛｜｝～〃〈〉《》「」『』【】〔〕〖〗（）［］｛｝｟｠｢｣､、'
         text = text.translate(str.maketrans('', '', string.punctuation + chinese_punctuations))
+        return text
+    
+    # 去除停用词
+    def remove_stops(self,text):
+        # 读取停用词表
+        stopwords_path='./data/hit_stopwords.txt'
+        stopwords=[line.strip() for line in open(stopwords_path,'r',encoding='utf-8').readlines()]
+        # 分词
+        seg_list=jieba.cut(text)
+        # 移除停用词
+        new_seg_list=[word for word in seg_list if word not in stopwords]
+        text = ''.join(new_seg_list)
+        return text
 
 
 class DataSplitter():
