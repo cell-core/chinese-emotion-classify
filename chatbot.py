@@ -5,6 +5,8 @@ from transformers import BertTokenizer, BertModel
 import re
 import pandas as pd
 from tqdm import tqdm
+import os
+
 
 class JiebaTokenizer:
     def __init__(self):
@@ -95,7 +97,7 @@ class LSTMClassifier(torch.nn.Module):
         input_size=len(X[0][0])#(batch_size, sequence_length, input_size)
         output_size=len(y[0])
         # 构造网络
-        self.lstm = torch.nn.LSTM(input_size, hidden_size, batch_first=True)
+        self.lstm = torch.nn.LSTM(input_size, hidden_size, batch_first=True)# 把网络构造放在这里主要是因为需要确认输入输出大小，之后应该放入初始化方法中
         self.fc = torch.nn.Linear(hidden_size, output_size)
         # 优化器和损失函数
         optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
@@ -121,25 +123,31 @@ class LSTMClassifier(torch.nn.Module):
     def predict(self, X):
         input_tensor = torch.tensor(X, dtype=torch.float32)
         y_pred = self.forward(input_tensor).detach().numpy()
-        y_pred = (y_pred > 0.5).astype(int)
         return y_pred.ravel()
 
 
 # 定义对话机器人类
 class Chatbot():
-    def __init__(self,classifier,epochs=100,batch_size=32,learning_rate=0.001):
+    def __init__(self,classifier,epochs=100,batch_size=32,learning_rate=0.001,model_path=None):
         self.tokenizer=JiebaTokenizer()
         self.featurizer=LanguageModelFeaturizer('bert-base-chinese','bert-base-chinese')
         self.epochs=epochs
         self.batch_size=batch_size
         self.learning_rate=learning_rate
-        self.mode=classifier
+        self.mode=classifier#用于决定特征提取方法
         if(classifier=='NNClassifier'):
             self.classifier=NNClassifier()
         elif(classifier=='LSTMClassifier'):
             self.classifier=LSTMClassifier()
+        if model_path is not None and os.path.exists(model_path):
+            self.classifier= torch.load(model_path)# 覆盖了上面的self.classifier赋值
+            self.trained = True
+            self.loaded = True
+        else:
+            self.trained = False
+            self.loaded = False
 
-    def train(self,training_data):
+    def train(self,training_data,model_path='./model/demo_model.pt'):
         # 将训练数据转化为特征向量
         X=[]
         y=[]
@@ -151,6 +159,10 @@ class Chatbot():
             y.append([label])
         # 训练分类器
         self.classifier.train(torch.tensor(X),torch.tensor(y),self.epochs,self.batch_size,self.learning_rate)
+        # 保存模型
+        if model_path is not None:
+            torch.save(self.classifier, model_path)#实际保存classifier实例
+        self.trained = True
 
     def predict(self,message):
         # 提取特征向量
@@ -160,6 +172,10 @@ class Chatbot():
         return intent_probs
 
     def evaluate(self, test_data):
+        # 若模型未训练，则不能进行预测和评估
+        if not self.trained:
+            print("Please train the model first!")
+            return
         # 将测试数据转化为特征向量
         X_test = []
         y_test = []
@@ -206,7 +222,8 @@ class Chatbot():
         wrong_df1.to_csv('./data/wrong/wrongTo1.csv', index=False)
 
         # 写入训练信息
-        train_info=pd.read_csv('./data/train_info.csv')
-        new_row = {'classifier': self.mode, 'epochs': self.epochs, 'batch_size': self.batch_size, 'learning_rate': self.learning_rate, 'accuracy': accuracy, 'precision': precision, 'recall': recall, 'f1_score': f1_score}
-        train_info=train_info.append(new_row, ignore_index=True)
-        train_info.to_csv('./data/train_info.csv', index=False)
+        if not self.loaded:
+            train_info=pd.read_csv('./data/train_info.csv')
+            new_row = {'classifier': self.mode, 'epochs': self.epochs, 'batch_size': self.batch_size, 'learning_rate': self.learning_rate, 'accuracy': accuracy, 'precision': precision, 'recall': recall, 'f1_score': f1_score}
+            train_info=train_info.append(new_row, ignore_index=True)
+            train_info.to_csv('./data/train_info.csv', index=False)
