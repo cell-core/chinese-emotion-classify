@@ -76,8 +76,7 @@ class NNClassifier:
         # 预测意图
         y_pred=self.model(X)
         # 将预测结果的每个元素转化为浮点型
-        return [float(y) for y in y_pred]
-
+        return y_pred.tolist()
 
 class LSTMClassifier(torch.nn.Module):
     def __init__(self):
@@ -123,7 +122,7 @@ class LSTMClassifier(torch.nn.Module):
     def predict(self, X):
         input_tensor = torch.tensor(X, dtype=torch.float32)
         y_pred = self.forward(input_tensor).detach().numpy()
-        return y_pred.ravel()
+        return y_pred
 
 
 # 定义对话机器人类
@@ -156,7 +155,10 @@ class Chatbot():
             features=self.featurizer.featurize(message,self.mode)
             X.append(features)
             label=training_data.iloc[row]['label']
-            y.append([label])
+            if label==0:
+                y.append([1,0])
+            elif label==1:
+                y.append([0,1])          
         # 训练分类器
         self.classifier.train(torch.tensor(X),torch.tensor(y),self.epochs,self.batch_size,self.learning_rate)
         # 保存模型
@@ -184,46 +186,62 @@ class Chatbot():
             features = self.featurizer.featurize(message,self.mode)
             X_test.append(features)
             label = test_data.iloc[row]['label']
-            y_test.append(label) #注意与train()函数中y.append([label])不同
+            if label==0:
+                y_test.append([1,0])
+            elif label==1:
+                y_test.append([0,1]) 
 
         # 将特征向量输入模型进行预测
         y_prob = self.classifier.predict(torch.tensor(X_test))
-        y_pred = [1 if prob >= 0.5 else 0 for prob in y_prob]
+        y_pred = []
+        for prob in y_prob:
+            if abs(prob[1] - prob[0]) < 0.3:
+                y_pred.append([0,0])
+            else:
+                y_pred.append([1 if prob[0]>0.7 else 0, 1 if prob[1]>0.7 else 0])
 
         # 计算各项预测参数
-        accuracy = sum([1 if pred == true_label else 0 for pred, true_label in zip(y_pred, y_test)]) / len(y_test)
-        precision = sum([1 if pred == 1 and true_label == 1 else 0 for pred, true_label in zip(y_pred, y_test)]) / sum(y_pred)
-        recall = sum([1 if pred == 1 and true_label == 1 else 0 for pred, true_label in zip(y_pred, y_test)]) / sum(y_test)
-        f1_score = 2 * precision * recall / (precision + recall)
+        # accuracy = sum([1 if pred == true_label else 0 for pred, true_label in zip(y_pred, y_test)]) / len(y_test)
+        # precision = sum([1 if pred == 1 and true_label == 1 else 0 for pred, true_label in zip(y_pred, y_test)]) / sum(y_pred)
+        # recall = sum([1 if pred == 1 and true_label == 1 else 0 for pred, true_label in zip(y_pred, y_test)]) / sum(y_test)
+        # f1_score = 2 * precision * recall / (precision + recall)
 
-        print("Accuracy: {:.4f}".format(accuracy))
-        print("Precision: {:.4f}".format(precision))
-        print("Recall: {:.4f}".format(recall))
-        print("F1 Score: {:.4f}".format(f1_score))
+        # print("Accuracy: {:.4f}".format(accuracy))
+        # print("Precision: {:.4f}".format(precision))
+        # print("Recall: {:.4f}".format(recall))
+        # print("F1 Score: {:.4f}".format(f1_score))
 
         # 保存分类错误的样本到文件中
         wrong_samples_to0 = []
         wrong_samples_to1 = [] # 被错误归类为1的样本
+        wrong_samples_confused=[]
         prob_to0 = []
         prob_to1 = [] # 对应样本模型预测的prob值 
+        prob_confused=[]
         for i in tqdm(range(len(y_pred)), desc="wrongData"):
-            if y_pred[i] != y_test[i]:
-                if y_pred[i] == 0:
+            if y_pred[i] == [0,0]:
+                wrong_samples_confused.append(test_data.iloc[i])
+                prob_confused.append([f"{num:.2f}" for num in y_prob[i]])
+            elif y_pred[i] != y_test[i]:
+                if y_pred[i] == [1,0]:
                     wrong_samples_to0.append(test_data.iloc[i])
-                    prob_to0.append(round(y_prob[i], 2))
+                    prob_to0.append([f"{num:.2f}" for num in y_prob[i]])
                 else:
                     wrong_samples_to1.append(test_data.iloc[i])
-                    prob_to1.append(round(y_prob[i], 2))
+                    prob_to1.append([f"{num:.2f}" for num in y_prob[i]])
         wrong_df0 = pd.DataFrame(wrong_samples_to0)
         wrong_df1 = pd.DataFrame(wrong_samples_to1)
-        wrong_df0.insert(loc=1, column='prob', value=prob_to0)
-        wrong_df1.insert(loc=1, column='prob', value=prob_to1)
+        wrong_dfc = pd.DataFrame(wrong_samples_confused)
+        wrong_df0.insert(loc=0, column='prob', value=prob_to0)
+        wrong_df1.insert(loc=0, column='prob', value=prob_to1)
+        wrong_dfc.insert(loc=0, column='prob', value=prob_confused)
         wrong_df0.to_csv('./data/wrong/wrongTo0.csv', index=False)
         wrong_df1.to_csv('./data/wrong/wrongTo1.csv', index=False)
+        wrong_dfc.to_csv('./data/wrong/Confused.csv', index=False)
 
         # 写入训练信息
-        if not self.loaded:
-            train_info=pd.read_csv('./data/train_info.csv')
-            new_row = {'classifier': self.mode, 'epochs': self.epochs, 'batch_size': self.batch_size, 'learning_rate': self.learning_rate, 'accuracy': accuracy, 'precision': precision, 'recall': recall, 'f1_score': f1_score}
-            train_info=train_info.append(new_row, ignore_index=True)
-            train_info.to_csv('./data/train_info.csv', index=False)
+        # if not self.loaded:
+        #     train_info=pd.read_csv('./data/train_info.csv')
+        #     new_row = {'classifier': self.mode, 'epochs': self.epochs, 'batch_size': self.batch_size, 'learning_rate': self.learning_rate, 'accuracy': accuracy, 'precision': precision, 'recall': recall, 'f1_score': f1_score}
+        #     train_info=train_info.append(new_row, ignore_index=True)
+        #     train_info.to_csv('./data/train_info.csv', index=False)
