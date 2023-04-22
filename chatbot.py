@@ -6,6 +6,8 @@ import re
 import pandas as pd
 from tqdm import tqdm
 import os
+from sklearn.metrics import classification_report, multilabel_confusion_matrix, accuracy_score, precision_score, recall_score, f1_score, classification_report
+from pyhanlp import *
 
 
 class JiebaTokenizer:
@@ -26,7 +28,9 @@ class LanguageModelFeaturizer:
 
     def featurize(self,message,mode):
         # 对message使用tokenizer编码
-        input_ids=torch.tensor([self.tokenizer.encode(message,add_special_tokens=True,max_length=100,pad_to_max_length=True,truncation=True)])
+        #input_ids=torch.tensor([self.tokenizer.encode(message,add_special_tokens=True,max_length=100,pad_to_max_length=True,truncation=True)])
+        input_ids=torch.tensor([self.tokenizer.encode(message,add_special_tokens=True,max_length=20,padding='max_length',truncation=True)])
+
         with torch.no_grad():
             # 获取编码后的文本特征
             if(mode=='NNClassifier'):
@@ -201,15 +205,12 @@ class Chatbot():
                 y_pred.append([1 if prob[0]>0.7 else 0, 1 if prob[1]>0.7 else 0])
 
         # 计算各项预测参数
-        # accuracy = sum([1 if pred == true_label else 0 for pred, true_label in zip(y_pred, y_test)]) / len(y_test)
-        # precision = sum([1 if pred == 1 and true_label == 1 else 0 for pred, true_label in zip(y_pred, y_test)]) / sum(y_pred)
-        # recall = sum([1 if pred == 1 and true_label == 1 else 0 for pred, true_label in zip(y_pred, y_test)]) / sum(y_test)
-        # f1_score = 2 * precision * recall / (precision + recall)
-
-        # print("Accuracy: {:.4f}".format(accuracy))
-        # print("Precision: {:.4f}".format(precision))
-        # print("Recall: {:.4f}".format(recall))
-        # print("F1 Score: {:.4f}".format(f1_score))
+        conf_mat = multilabel_confusion_matrix(y_test, y_pred)# 计算混淆矩阵
+        for i, confusion_matrix in enumerate(conf_mat):
+            print(f"Confusion matrix for class {i}:")
+            print(confusion_matrix)
+        report = classification_report(y_test, y_pred)# 计算准确率、精确率、召回率、F1值
+        print(report)
 
         # 保存分类错误的样本到文件中
         wrong_samples_to0 = []
@@ -240,8 +241,34 @@ class Chatbot():
         wrong_dfc.to_csv('./data/wrong/Confused.csv', index=False)
 
         # 写入训练信息
-        # if not self.loaded:
-        #     train_info=pd.read_csv('./data/train_info.csv')
-        #     new_row = {'classifier': self.mode, 'epochs': self.epochs, 'batch_size': self.batch_size, 'learning_rate': self.learning_rate, 'accuracy': accuracy, 'precision': precision, 'recall': recall, 'f1_score': f1_score}
-        #     train_info=train_info.append(new_row, ignore_index=True)
-        #     train_info.to_csv('./data/train_info.csv', index=False)
+        if not self.loaded:
+            accuracy = accuracy_score(y_test, y_pred)
+            precision = precision_score(y_test, y_pred, average='weighted')
+            recall = recall_score(y_test, y_pred, average='weighted')
+            f1 = f1_score(y_test, y_pred, average='weighted')
+            train_info=pd.read_csv('./data/train_info.csv')
+            new_row = {'classifier': self.mode, 'epochs': self.epochs, 'batch_size': self.batch_size, 'learning_rate': self.learning_rate, 'accuracy': accuracy, 'precision': precision, 'recall': recall, 'f1_score': f1}
+            train_info=train_info.append(new_row, ignore_index=True)
+            train_info.to_csv('./data/train_info.csv', index=False)
+
+
+class EntityExtractor:
+    def __init__(self):
+        #self.segment = HanLP.newSegment().enablePlaceRecognize(True).enableTimeRecognize(True)
+        self.segment = HanLP.newSegment().enableAllNamedEntityRecognize(True)
+
+    def extract(self, text):
+        """
+        Args:
+            text (str): 待识别的文本
+        Returns:
+            entities (list): 包含时间和地点实体的列表
+        """
+        entities = []
+        term_list = self.segment.seg(text)
+        for term in term_list:
+            if str(term.nature) == 't':
+                entities.append({'type': 'time', 'word': str(term.word)})
+            elif str(term.nature) == 'ns':
+                entities.append({'type': 'place', 'word': str(term.word)})
+        return entities
