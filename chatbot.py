@@ -7,7 +7,6 @@ import pandas as pd
 from tqdm import tqdm
 import os
 from sklearn.metrics import classification_report, multilabel_confusion_matrix, accuracy_score, precision_score, recall_score, f1_score, classification_report
-from pyhanlp import *
 
 
 class JiebaTokenizer:
@@ -250,25 +249,3 @@ class Chatbot():
             new_row = {'classifier': self.mode, 'epochs': self.epochs, 'batch_size': self.batch_size, 'learning_rate': self.learning_rate, 'accuracy': accuracy, 'precision': precision, 'recall': recall, 'f1_score': f1}
             train_info=train_info.append(new_row, ignore_index=True)
             train_info.to_csv('./data/train_info.csv', index=False)
-
-
-class EntityExtractor:
-    def __init__(self):
-        #self.segment = HanLP.newSegment().enablePlaceRecognize(True).enableTimeRecognize(True)
-        self.segment = HanLP.newSegment().enableAllNamedEntityRecognize(True)
-
-    def extract(self, text):
-        """
-        Args:
-            text (str): 待识别的文本
-        Returns:
-            entities (list): 包含时间和地点实体的列表
-        """
-        entities = []
-        term_list = self.segment.seg(text)
-        for term in term_list:
-            if str(term.nature) == 't':
-                entities.append({'type': 'time', 'word': str(term.word)})
-            elif str(term.nature) == 'ns':
-                entities.append({'type': 'place', 'word': str(term.word)})
-        return entities
