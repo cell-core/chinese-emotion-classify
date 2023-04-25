@@ -1,0 +1,11 @@
+requests
+json
+python-dateutil
+pyhanlp
+pandas
+scikit-learn
+jieba
+torch
+transformers
+tqdm
+colorama
