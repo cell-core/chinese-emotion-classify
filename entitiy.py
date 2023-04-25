@@ -93,7 +93,7 @@ class EntityExtractor:
                 print("仅支持查询今天到后天的天气")#------------to develop
 
     def lookup_table(self):
-        date_pattern = re.compile(r"[今|明|后]天")
+        date_pattern = re.compile(r"[今|明|后][天|日]")
         match = date_pattern.findall(self.text)
         if match:
             self.entities['time'] = match[0]

@@ -1,28 +1,10 @@
-import pandas as pd
 import chatbot
-import data_tools
 from weather import get_text_weather_date
 from colorama import init, Fore, Back, Style
 from entitiy import EntityExtractor
 
 
-training_data=pd.read_csv("./data/weatherData.csv")
-test_data=pd.read_csv("./data/coverTest.csv")
-
-# training_data=pd.read_csv("./data/trainC.csv")
-# test_data=pd.read_csv("./data/testC.csv")
-# NNClassifier
-# chatbot=chatbot.Chatbot(classifier='NNClassifier',epochs=150,batch_size=32,learning_rate=0.001)
-# chatbot.train(training_data,"./model/nn_model.pt")
-#chatbot=chatbot.Chatbot(classifier='NNClassifier',model_path="./model/nn_model.pt")
-
-# LSTMClassifier
-# chatbot=chatbot.Chatbot(classifier='LSTMClassifier',epochs=30,batch_size=32,learning_rate=0.001)
-# chatbot.train(training_data,"./model/lstm_model.pt")
-chatbot=chatbot.Chatbot(classifier='LSTMClassifier',model_path="./model/lstm_model.pt")
-
-#chatbot.evaluate(test_data)
-
+chatbot=chatbot.Chatbot(classifier='LSTMClassifier',model_path="./model/lstm_model.pt")#读取训练好的./model/lstm_model.pt模型
 
 # 初始化 colorama
 init()
